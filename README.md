@@ -40,7 +40,7 @@
 ## 📸 صور التطبيق
 
 ### شاشة البداية
-![شاشة البداية](screenshots/splash_screen.png)
+![شاشة البداية](screenshots/splash_screen.PNG)
 
 ### الشاشة الرئيسية
 ![الشاشة الرئيسية](screenshots/home_screen.png)
