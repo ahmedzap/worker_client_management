@@ -6,6 +6,7 @@ import '../models/production.dart';
 import '../models/expense.dart';
 import 'add_production.dart';
 import 'add_expense.dart';
+import 'worker_statement.dart';
 import '../utils/pdf_helper.dart';
 
 class WorkerDetailsScreen extends StatefulWidget {
@@ -21,8 +22,9 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     with SingleTickerProviderStateMixin {
   List<Production> productions = [];
   List<Expense> expenses = [];
-  DatabaseHelper db = DatabaseHelper();
+  final DatabaseHelper db = DatabaseHelper();
   late TabController _tabController;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -38,14 +40,17 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
   }
 
   Future<void> _loadData() async {
+    setState(() => isLoading = true);
     try {
       final prods = await db.getProductionsByWorker(widget.worker.id!);
       final exps = await db.getExpensesByWorker(widget.worker.id!);
       setState(() {
         productions = prods;
         expenses = exps;
+        isLoading = false;
       });
     } catch (e) {
+      setState(() => isLoading = false);
       _showError('حدث خطأ أثناء تحميل البيانات');
     }
   }
@@ -54,9 +59,33 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.worker.name),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.worker.name,
+              style: const TextStyle(fontSize: 18),
+            ),
+            Text(
+              'عامل',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         elevation: 0,
         backgroundColor: Colors.orange,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _printWeeklyReport,
+            tooltip: 'طباعة تقرير أسبوعي',
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: _printMonthlyReport,
+            tooltip: 'طباعة تقرير شهري',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -68,7 +97,9 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
           unselectedLabelColor: Colors.white70,
         ),
       ),
-      body: Column(
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           _buildSummaryCard(),
           Expanded(
@@ -90,6 +121,8 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     );
   }
 
+  // ==================== بطاقة الملخص ====================
+
   Widget _buildSummaryCard() {
     double totalProduction = productions.fold(0, (sum, p) => sum + p.total);
     double totalExpenses = expenses.fold(0, (sum, e) => sum + e.amount);
@@ -98,6 +131,9 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     return Card(
       margin: const EdgeInsets.all(10),
       elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Row(
@@ -107,16 +143,19 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
               'إجمالي الإنتاج',
               totalProduction,
               Colors.green,
+              Icons.production_quantity_limits,
             ),
             _buildSummaryItem(
               'إجمالي المصروفات',
               totalExpenses,
               Colors.red,
+              Icons.money_off,
             ),
             _buildSummaryItem(
               'الصافي',
               net,
               net >= 0 ? Colors.blue : Colors.red,
+              Icons.trending_up,
             ),
           ],
         ),
@@ -124,13 +163,20 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     );
   }
 
-  Widget _buildSummaryItem(String label, double value, Color color) {
+  Widget _buildSummaryItem(String label, double value, Color color, IconData icon) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ],
         ),
+        const SizedBox(height: 2),
         Text(
           NumberFormat('#,##0.00').format(value),
           style: TextStyle(
@@ -143,26 +189,53 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     );
   }
 
+  // ==================== تبويب الإنتاج ====================
+
   Widget _buildProductionsTab() {
     if (productions.isEmpty) {
       return const Center(
-        child: Text('لا توجد حركات إنتاج'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.production_quantity_limits, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('لا توجد حركات إنتاج', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: productions.length,
-      // ✅ التغيير الرئيسي: استخدم itemBuilder بدلاً من builder
       itemBuilder: (context, index) {
         final prod = productions[index];
         return Card(
           elevation: 2,
           margin: const EdgeInsets.symmetric(vertical: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: ListTile(
-            title: Text('المنتج رقم ${prod.productId}'),
-            subtitle: Text(
-              'الكمية: ${prod.quantity} × السعر: ${NumberFormat('#,##0.00').format(prod.price)}',
+            leading: CircleAvatar(
+              backgroundColor: Colors.green.shade100,
+              child: const Icon(Icons.production_quantity_limits, color: Colors.green),
+            ),
+            title: Text(
+              'المنتج رقم ${prod.productId}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'الكمية: ${prod.quantity} × السعر: ${NumberFormat('#,##0.00').format(prod.price)}',
+                ),
+                Text(
+                  DateFormat('yyyy-MM-dd').format(prod.date),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
             ),
             trailing: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -173,11 +246,19 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green,
+                    fontSize: 16,
                   ),
                 ),
-                Text(
-                  DateFormat('yyyy-MM-dd').format(prod.date),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'إنتاج',
+                    style: TextStyle(fontSize: 10, color: Colors.green),
+                  ),
                 ),
               ],
             ),
@@ -187,31 +268,70 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     );
   }
 
+  // ==================== تبويب المصروفات ====================
+
   Widget _buildExpensesTab() {
     if (expenses.isEmpty) {
       return const Center(
-        child: Text('لا توجد مصروفات'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.money_off, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('لا توجد مصروفات', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: expenses.length,
-      // ✅ التغيير الرئيسي: استخدم itemBuilder بدلاً من builder
       itemBuilder: (context, index) {
         final exp = expenses[index];
         return Card(
           elevation: 2,
           margin: const EdgeInsets.symmetric(vertical: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           child: ListTile(
-            title: Text(exp.description),
-            subtitle: Text(DateFormat('yyyy-MM-dd').format(exp.date)),
-            trailing: Text(
-              NumberFormat('#,##0.00').format(exp.amount),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
+            leading: CircleAvatar(
+              backgroundColor: Colors.red.shade100,
+              child: const Icon(Icons.money_off, color: Colors.red),
+            ),
+            title: Text(
+              exp.description,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              DateFormat('yyyy-MM-dd').format(exp.date),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            trailing: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  NumberFormat('#,##0.00').format(exp.amount),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                    fontSize: 16,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'مصروف',
+                    style: TextStyle(fontSize: 10, color: Colors.red),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -219,15 +339,34 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     );
   }
 
+  // ==================== دوال الإضافة ====================
+
   void _showAddOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => SafeArea(
         child: Wrap(
           children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  'إضافة حركة جديدة',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.production_quantity_limits, color: Colors.green),
               title: const Text('إضافة حركة إنتاج'),
+              subtitle: const Text('تسجيل إنتاج جديد للعامل'),
               onTap: () {
                 Navigator.pop(context);
                 _addProduction();
@@ -236,14 +375,17 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
             ListTile(
               leading: const Icon(Icons.money_off, color: Colors.red),
               title: const Text('إضافة مصروف'),
+              subtitle: const Text('تسجيل مصروف جديد للعامل'),
               onTap: () {
                 Navigator.pop(context);
                 _addExpense();
               },
             ),
+            const Divider(),
             ListTile(
               leading: const Icon(Icons.picture_as_pdf, color: Colors.blue),
               title: const Text('طباعة تقرير أسبوعي'),
+              subtitle: const Text('تقرير من الجمعة للخميس'),
               onTap: () {
                 Navigator.pop(context);
                 _printWeeklyReport();
@@ -252,9 +394,20 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
             ListTile(
               leading: const Icon(Icons.calendar_month, color: Colors.purple),
               title: const Text('طباعة تقرير شهري'),
+              subtitle: const Text('تقرير الشهر الحالي'),
               onTap: () {
                 Navigator.pop(context);
                 _printMonthlyReport();
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.receipt_long, color: Colors.orange),
+              title: const Text('كشف حساب'),
+              subtitle: const Text('عرض كشف الحساب مع الفلترة'),
+              onTap: () {
+                Navigator.pop(context);
+                _showStatement();
               },
             ),
           ],
@@ -264,41 +417,43 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
   }
 
   void _addProduction() async {
-    try {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddProductionScreen(workerId: widget.worker.id!),
-        ),
-      );
-      if (result == true) {
-        _loadData();
-      }
-    } catch (e) {
-      _showError('حدث خطأ أثناء إضافة حركة الإنتاج');
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddProductionScreen(workerId: widget.worker.id!),
+      ),
+    );
+    if (result == true) {
+      _loadData();
     }
   }
 
   void _addExpense() async {
-    try {
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddExpenseScreen(workerId: widget.worker.id!),
-        ),
-      );
-      if (result == true) {
-        _loadData();
-      }
-    } catch (e) {
-      _showError('حدث خطأ أثناء إضافة المصروف');
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddExpenseScreen(workerId: widget.worker.id!),
+      ),
+    );
+    if (result == true) {
+      _loadData();
     }
   }
+
+  void _showStatement() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => WorkerStatementScreen(worker: widget.worker),
+      ),
+    );
+  }
+
+  // ==================== دوال الطباعة ====================
 
   void _printWeeklyReport() async {
     try {
       final now = DateTime.now();
-      // حساب بداية الأسبوع (الجمعة)
       int daysToSubtract = now.weekday + 1;
       if (daysToSubtract > 7) daysToSubtract = 7;
       final weekStart = now.subtract(Duration(days: daysToSubtract));
@@ -333,12 +488,24 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
     }
   }
 
+  // ==================== دوال المساعدة ====================
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red.shade700,
+        behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }

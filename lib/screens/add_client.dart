@@ -14,8 +14,11 @@ class _AddClientScreenState extends State<AddClientScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _taxNumberController = TextEditingController();
+  final _notesController = TextEditingController();
   final _balanceController = TextEditingController();
-  DatabaseHelper db = DatabaseHelper();
+  bool _isSupplier = false;
+  final DatabaseHelper db = DatabaseHelper();
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +29,7 @@ class _AddClientScreenState extends State<AddClientScreen> {
         backgroundColor: Colors.green,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -43,19 +46,32 @@ class _AddClientScreenState extends State<AddClientScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _phoneController,
                   label: 'رقم الهاتف',
                   icon: Icons.phone,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _addressController,
                   label: 'العنوان',
                   icon: Icons.location_on,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _taxNumberController,
+                  label: 'الرقم الضريبي (اختياري)',
+                  icon: Icons.numbers,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _notesController,
+                  label: 'ملاحظات (اختياري)',
+                  icon: Icons.note,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _balanceController,
                   label: 'الرصيد الافتتاحي',
@@ -71,7 +87,32 @@ class _AddClientScreenState extends State<AddClientScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text(
+                      'مورد',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const Text(
+                      'تفعيل إذا كان هذا العميل مورداً',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    value: _isSupplier,
+                    onChanged: (value) {
+                      setState(() {
+                        _isSupplier = value;
+                      });
+                    },
+                    activeColor: Colors.green,
+                    inactiveThumbColor: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -79,6 +120,10 @@ class _AddClientScreenState extends State<AddClientScreen> {
                     onPressed: _saveClient,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: const Text(
                       'حفظ العميل',
@@ -99,11 +144,13 @@ class _AddClientScreenState extends State<AddClientScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      maxLines: maxLines,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -119,16 +166,42 @@ class _AddClientScreenState extends State<AddClientScreen> {
 
   void _saveClient() async {
     if (_formKey.currentState!.validate()) {
-      final client = Client(
-        name: _nameController.text,
-        phone: _phoneController.text,
-        address: _addressController.text,
-        openingBalance: double.parse(_balanceController.text),
-        currentBalance: double.parse(_balanceController.text),
-      );
+      try {
+        final openingBalance = double.parse(_balanceController.text);
 
-      await db.insertClient(client);
-      Navigator.pop(context, true);
+        final client = Client(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          taxNumber: _taxNumberController.text.trim(),
+          notes: _notesController.text.trim(),
+          openingBalance: openingBalance,
+          currentBalance: openingBalance, // ✅ الرصيد الحالي يساوي الرصيد الافتتاحي
+          isSupplier: _isSupplier,
+        );
+
+        await db.insertClient(client);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ تم إضافة العميل بنجاح'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ خطأ في حفظ العميل: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -137,6 +210,8 @@ class _AddClientScreenState extends State<AddClientScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _taxNumberController.dispose();
+    _notesController.dispose();
     _balanceController.dispose();
     super.dispose();
   }

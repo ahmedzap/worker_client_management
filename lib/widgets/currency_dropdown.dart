@@ -58,20 +58,20 @@ class _CurrencyDropdownState extends State<CurrencyDropdown> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const SizedBox(
-        height: 40,
+        height: 50,
         child: Center(child: CircularProgressIndicator()),
       );
     }
 
     if (currencies.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           border: Border.all(color: Colors.red),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Text(
-          '❌ لا توجد عملات',
+          '❌ لا توجد عملات. أضف عملة في الإعدادات',
           style: TextStyle(color: Colors.red, fontSize: 12),
         ),
       );

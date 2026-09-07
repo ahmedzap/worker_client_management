@@ -42,7 +42,8 @@ dependencies:
   printing: ^5.11.1
   path_provider: ^2.1.0
   shared_preferences: ^2.2.2
-
+  google_fonts: ^6.1.0
+  flutter_launcher_icons: ^0.13.1
 
 
 dev_dependencies:
@@ -55,7 +56,20 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"  # ✅ المسار الصحيح للشعار
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
+  windows:
+    generate: true
+    image_path: "assets/images/logo.png"
+  macos:
+    generate: true
+    image_path: "assets/images/logo.png"
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
@@ -95,7 +109,21 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
+
+ # fonts:
+  #  - family: ArialUni
+   #   fonts:
+    #    - asset: assets/fonts/"arial unicode ms.ttf"
+     #   - asset: assets/fonts/arial unicode ms bold.ttf
+      #    weight: 700
   assets:
     - assets/images/logo.png
+    - assets/fonts/NotoNaskhArabic-Regular.ttf
+    - assets/fonts/NotoNaskhArabic-Bold.ttf
+
+    - assets/fonts/NotoSansArabic-Regular.ttf
+    - assets/fonts/NotoSansArabic-Bold.ttf
+    - assets/fonts/Cairo-Regular.ttf
+    - assets/fonts/Cairo-Bold.ttf
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

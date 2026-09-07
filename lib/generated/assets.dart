@@ -5,6 +5,16 @@ import 'package:flutter/widgets.dart';
 class Assets {
   Assets._();
 
+  static const String cairoBold = 'assets/fonts/Cairo-Bold.ttf';
+  static const String cairoRegular = 'assets/fonts/Cairo-Regular.ttf';
+  static const String notoNaskhArabicBold =
+      'assets/fonts/NotoNaskhArabic-Bold.ttf';
+  static const String notoNaskhArabicRegular =
+      'assets/fonts/NotoNaskhArabic-Regular.ttf';
+  static const String notoSansArabicBold =
+      'assets/fonts/NotoSansArabic-Bold.ttf';
+  static const String notoSansArabicRegular =
+      'assets/fonts/NotoSansArabic-Regular.ttf';
   static const AssetGenImage logo = AssetGenImage('assets/images/logo.png');
 }
 
