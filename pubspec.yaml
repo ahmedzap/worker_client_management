@@ -44,6 +44,7 @@ dependencies:
   shared_preferences: ^2.2.2
   google_fonts: ^6.1.0
   flutter_launcher_icons: ^0.13.1
+  arabic_font: ^0.0.9
 
 
 dev_dependencies:
@@ -70,6 +71,10 @@ flutter_launcher_icons:
   macos:
     generate: true
     image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"  # لون الخلفية
+  adaptive_icon_foreground: "assets/images/logo.png"  # الصورة الأمامية
+  remove_alpha_ios: true  # إزالة الشفافية في iOS
+  background_color_ios: "#FFFFFF"
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

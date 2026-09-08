@@ -6,6 +6,7 @@ import '../models/production.dart';
 import '../models/expense.dart';
 import 'add_production.dart';
 import 'add_expense.dart';
+import 'edit_worker.dart';
 import 'worker_statement.dart';
 import '../utils/pdf_helper.dart';
 
@@ -75,6 +76,17 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
         elevation: 0,
         backgroundColor: Colors.orange,
         actions: [
+          // ✅ زر تعديل العامل
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _editWorker,
+            tooltip: 'تعديل بيانات العامل',
+          ),
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: _showStatement,
+            tooltip: 'كشف حساب',
+          ),
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             onPressed: _printWeeklyReport,
@@ -124,9 +136,11 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
   // ==================== بطاقة الملخص ====================
 
   Widget _buildSummaryCard() {
-    double totalProduction = productions.fold(0, (sum, p) => sum + p.total);
-    double totalExpenses = expenses.fold(0, (sum, e) => sum + e.amount);
+    double totalProduction = productions.fold(0.0, (sum, p) => sum + p.total);
+    double totalExpenses = expenses.fold(0.0, (sum, e) => sum + e.amount);
     double net = totalProduction - totalExpenses;
+    double openingBalance = widget.worker.openingBalance;
+    double currentBalance = widget.worker.currentBalance;
 
     return Card(
       margin: const EdgeInsets.all(10),
@@ -136,26 +150,88 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
       ),
       child: Padding(
         padding: const EdgeInsets.all(15),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        child: Column(
           children: [
-            _buildSummaryItem(
-              'إجمالي الإنتاج',
-              totalProduction,
-              Colors.green,
-              Icons.production_quantity_limits,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSummaryItem(
+                  'الرصيد الافتتاحي',
+                  openingBalance,
+                  Colors.blue,
+                  Icons.account_balance,
+                ),
+                _buildSummaryItem(
+                  'إجمالي الإنتاج',
+                  totalProduction,
+                  Colors.green,
+                  Icons.production_quantity_limits,
+                ),
+                _buildSummaryItem(
+                  'إجمالي المصروفات',
+                  totalExpenses,
+                  Colors.red,
+                  Icons.money_off,
+                ),
+              ],
             ),
-            _buildSummaryItem(
-              'إجمالي المصروفات',
-              totalExpenses,
-              Colors.red,
-              Icons.money_off,
+            const Divider(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSummaryItem(
+                  'صافي الربح',
+                  net,
+                  net >= 0 ? Colors.green : Colors.red,
+                  Icons.trending_up,
+                ),
+                _buildSummaryItem(
+                  'الرصيد النهائي',
+                  currentBalance.abs(),
+                  currentBalance >= 0 ? Colors.green : Colors.red,
+                  Icons.account_balance_wallet,
+                ),
+              ],
             ),
-            _buildSummaryItem(
-              'الصافي',
-              net,
-              net >= 0 ? Colors.blue : Colors.red,
-              Icons.trending_up,
+            const SizedBox(height: 8),
+            // ✅ عرض حالة الرصيد
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: widget.worker.balanceColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: widget.worker.balanceColor.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    widget.worker.balanceIcon,
+                    color: widget.worker.balanceColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.worker.balanceStatus,
+                    style: TextStyle(
+                      color: widget.worker.balanceColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    NumberFormat('#,##0.00').format(currentBalance.abs()),
+                    style: TextStyle(
+                      color: widget.worker.balanceColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -414,6 +490,18 @@ class _WorkerDetailsScreenState extends State<WorkerDetailsScreen>
         ),
       ),
     );
+  }
+
+  void _editWorker() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditWorkerScreen(worker: widget.worker),
+      ),
+    );
+    if (result == true) {
+      _loadData();
+    }
   }
 
   void _addProduction() async {

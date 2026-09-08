@@ -15,7 +15,7 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _balanceController = TextEditingController();
-  DatabaseHelper db = DatabaseHelper();
+  final DatabaseHelper db = DatabaseHelper();
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +23,10 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
       appBar: AppBar(
         title: const Text('إضافة عامل جديد'),
         elevation: 0,
+        backgroundColor: Colors.orange,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -42,19 +43,19 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _phoneController,
                   label: 'رقم الهاتف',
                   icon: Icons.phone,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _addressController,
                   label: 'العنوان',
                   icon: Icons.location_on,
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 12),
                 _buildTextField(
                   controller: _balanceController,
                   label: 'الرصيد الافتتاحي',
@@ -70,12 +71,43 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'الرصيد الافتتاحي سيضاف إلى الرصيد الحالي للعامل',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     onPressed: _saveWorker,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     child: const Text(
                       'حفظ العامل',
                       style: TextStyle(fontSize: 18),
@@ -95,11 +127,13 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      maxLines: maxLines,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -115,16 +149,39 @@ class _AddWorkerScreenState extends State<AddWorkerScreen> {
 
   void _saveWorker() async {
     if (_formKey.currentState!.validate()) {
-      final worker = Worker(
-        name: _nameController.text,
-        phone: _phoneController.text,
-        address: _addressController.text,
-        openingBalance: double.parse(_balanceController.text),
-        currentBalance: double.parse(_balanceController.text),
-      );
+      try {
+        final openingBalance = double.parse(_balanceController.text);
 
-      await db.insertWorker(worker);
-      Navigator.pop(context, true);
+        final worker = Worker(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          openingBalance: openingBalance,
+          currentBalance: openingBalance, // ✅ الرصيد الحالي = الرصيد الافتتاحي
+        );
+
+        await db.insertWorker(worker);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ تم إضافة العامل بنجاح'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ خطأ في حفظ العامل: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 

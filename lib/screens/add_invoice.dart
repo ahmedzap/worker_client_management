@@ -48,7 +48,10 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       final prods = await db.getProducts();
       final curr = await db.getCurrencies();
 
-      // ✅ الحصول على العملة الافتراضية
+      // ✅ فلترة المنتجات المتاحة للعميل فقط
+      final clientProducts = prods.where((p) => p.isForClient).toList();
+
+      // ✅ الحصول على العملة الافتراضية بشكل آمن
       Currency? defaultCurrency;
       if (curr.isNotEmpty) {
         try {
@@ -62,7 +65,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       }
 
       setState(() {
-        products = prods;
+        products = clientProducts;
         currencies = curr;
         _selectedCurrencyId = defaultCurrency?.id;
         _exchangeRate = defaultCurrency?.exchangeRate ?? 1.0;
@@ -70,15 +73,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       });
     } catch (e) {
       setState(() => isLoading = false);
-      print('❌ خطأ في تحميل البيانات: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ خطأ في تحميل البيانات: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('خطأ في تحميل البيانات: $e');
     }
   }
 
@@ -117,13 +112,17 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                   children: [
                     _buildHeaderFields(),
                     const SizedBox(height: 16),
-                    _buildItemsList(),
-                    const SizedBox(height: 16),
-                    _buildAddItemButton(),
-                    const SizedBox(height: 16),
-                    _buildSummary(),
-                    const SizedBox(height: 16),
-                    _buildCurrencyDropdown(),
+                    if (products.isEmpty)
+                      _buildEmptyProductsMessage(),
+                    if (products.isNotEmpty) ...[
+                      _buildItemsList(),
+                      const SizedBox(height: 16),
+                      _buildAddItemButton(),
+                      const SizedBox(height: 16),
+                      _buildSummary(),
+                      const SizedBox(height: 16),
+                      _buildCurrencyDropdown(),
+                    ],
                   ],
                 ),
               ),
@@ -131,6 +130,34 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
             _buildSaveButton(),
           ],
         ),
+      ),
+    );
+  }
+
+  // ==================== بناء واجهة المستخدم ====================
+
+  Widget _buildEmptyProductsMessage() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'لا توجد منتجات متاحة للعميل. أضف منتجات في الإعدادات',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.blue.shade700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -221,22 +248,8 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
             ),
             const Divider(),
             if (items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 30),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.inventory_2, size: 48, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text(
-                        'أضف أصناف للفاتورة',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
+              _buildEmptyItemsMessage(),
+            if (items.isNotEmpty)
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -247,6 +260,24 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                   return _buildItemRow(index, item);
                 },
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyItemsMessage() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 30),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.inventory_2, size: 48, color: Colors.grey),
+            SizedBox(height: 8),
+            Text(
+              'أضف أصناف للفاتورة',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ),
@@ -276,10 +307,12 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       },
       child: Row(
         children: [
+          // ✅ اسم المنتج والكمية
           Expanded(
             flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   item.productName,
@@ -287,6 +320,8 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
                 Text(
                   '${item.quantity} × ${item.price.toStringAsFixed(2)}',
@@ -294,10 +329,13 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
                     fontSize: 12,
                     color: Colors.grey[600],
                   ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ),
           ),
+          // ✅ الإجمالي
           Expanded(
             flex: 1,
             child: Text(
@@ -310,14 +348,21 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Colors.red, size: 20),
-            onPressed: () {
-              setState(() {
-                items.removeAt(index);
-              });
-            },
-            tooltip: 'حذف',
+          // ✅ زر الحذف
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.red, size: 20),
+              onPressed: () {
+                setState(() {
+                  items.removeAt(index);
+                });
+              },
+              tooltip: 'حذف',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
           ),
         ],
       ),
@@ -330,7 +375,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
       child: OutlinedButton.icon(
         onPressed: products.isEmpty ? null : _showAddItemDialog,
         icon: const Icon(Icons.add),
-        label: Text(products.isEmpty ? 'لا توجد منتجات' : 'إضافة صنف'),
+        label: Text(products.isEmpty ? 'لا توجد منتجات للعميل' : 'إضافة صنف'),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
@@ -342,7 +387,6 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   }
 
   Widget _buildSummary() {
-    // ✅ استخدام double بدلاً من int
     final total = items.fold(0.0, (sum, item) => sum + item.total);
 
     return Card(
@@ -370,7 +414,7 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
               ],
             ),
             Text(
-              '${total.toStringAsFixed(2)}',
+              total.toStringAsFixed(2),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -434,6 +478,8 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
     );
   }
 
+  // ==================== دوال التفاعل ====================
+
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -468,75 +514,105 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
         ),
         content: Form(
           key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                decoration: const InputDecoration(
-                  labelText: 'المنتج',
-                  prefixIcon: Icon(Icons.production_quantity_limits),
-                  border: OutlineInputBorder(),
+          child: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<int>(
+                  decoration: const InputDecoration(
+                    labelText: 'المنتج',
+                    prefixIcon: Icon(Icons.production_quantity_limits),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: products.map((product) {
+                    return DropdownMenuItem<int>(
+                      value: product.id,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: product.typeColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              product.typeName,
+                              style: TextStyle(
+                                color: product.typeColor,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              product.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    selectedProductId = value;
+                    if (value != null) {
+                      final product = products.firstWhere((p) => p.id == value);
+                      final price = widget.type == 'sale'
+                          ? product.clientPrice
+                          : product.workerPrice;
+                      priceController.text = price.toString();
+                    }
+                  },
+                  validator: (value) {
+                    if (value == null) return 'اختر منتج';
+                    return null;
+                  },
                 ),
-                items: products.map((product) {
-                  return DropdownMenuItem<int>(
-                    value: product.id,
-                    child: Text(product.name),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  selectedProductId = value;
-                  if (value != null) {
-                    final product = products.firstWhere((p) => p.id == value);
-                    final price = widget.type == 'sale'
-                        ? product.clientPrice
-                        : product.workerPrice;
-                    priceController.text = price.toString();
-                  }
-                },
-                validator: (value) {
-                  if (value == null) return 'اختر منتج';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: quantityController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: quantityController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'الكمية',
+                    prefixIcon: Icon(Icons.numbers),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'أدخل الكمية';
+                    final numValue = double.tryParse(value);
+                    if (numValue == null) return 'أدخل رقم صحيح';
+                    if (numValue <= 0) return 'الكمية يجب أن تكون أكبر من صفر';
+                    return null;
+                  },
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'الكمية',
-                  prefixIcon: Icon(Icons.numbers),
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'السعر',
+                    prefixIcon: Icon(Icons.attach_money),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'أدخل السعر';
+                    final numValue = double.tryParse(value);
+                    if (numValue == null) return 'أدخل رقم صحيح';
+                    if (numValue <= 0) return 'السعر يجب أن يكون أكبر من صفر';
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'أدخل الكمية';
-                  final numValue = double.tryParse(value);
-                  if (numValue == null) return 'أدخل رقم صحيح';
-                  if (numValue <= 0) return 'الكمية يجب أن تكون أكبر من صفر';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: priceController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'السعر',
-                  prefixIcon: Icon(Icons.attach_money),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'أدخل السعر';
-                  final numValue = double.tryParse(value);
-                  if (numValue == null) return 'أدخل رقم صحيح';
-                  if (numValue <= 0) return 'السعر يجب أن يكون أكبر من صفر';
-                  return null;
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         actions: [
@@ -581,24 +657,14 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
   void _saveInvoice() async {
     if (_formKey.currentState!.validate()) {
       if (items.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('يجب إضافة على الأقل صنف واحد'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showError('يجب إضافة على الأقل صنف واحد');
         return;
       }
 
-      // ✅ التحقق من تكرار الأصناف
+      // ✅ التحقق من عدم تكرار الأصناف
       final productIds = items.map((e) => e.productId).toList();
       if (productIds.length != productIds.toSet().length) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ يوجد أصناف مكررة في الفاتورة'),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        _showError('⚠️ يوجد أصناف مكررة في الفاتورة');
         return;
       }
 
@@ -637,16 +703,25 @@ class _AddInvoiceScreenState extends State<AddInvoiceScreen> {
           Navigator.pop(context, true);
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ خطأ في حفظ الفاتورة: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        _showError('خطأ في حفظ الفاتورة: $e');
       }
     }
+  }
+
+  // ==================== دوال المساعدة ====================
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('❌ $message'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
   }
 
   @override

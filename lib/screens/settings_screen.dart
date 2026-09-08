@@ -303,14 +303,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: ListTile(
                     leading: CircleAvatar(
                       radius: 18,
-                      backgroundColor: Colors.orange.shade100,
-                      child: Text(
-                        product.name[0].toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.orange.shade800,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                      backgroundColor: product.typeColor.withOpacity(0.2),
+                      child: Icon(
+                        product.typeIcon,
+                        color: product.typeColor,
+                        size: 18,
                       ),
                     ),
                     title: Text(
@@ -323,18 +320,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'سعر العميل: ${product.clientPrice.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontSize: 12,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: product.typeColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                product.typeName,
+                                style: TextStyle(
+                                  color: product.typeColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'سعر العميل: ${product.clientPrice.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.blue.shade700,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           'سعر العامل: ${product.workerPrice.toStringAsFixed(2)}',
                           style: TextStyle(
                             color: Colors.orange.shade700,
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -461,7 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 decoration: const InputDecoration(
                   labelText: 'سعر الصرف',
-                  prefixIcon: Icon(Icons.money_off, size: 18),
+                  prefixIcon: Icon(Icons.monetization_on_sharp, size: 18),
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -579,7 +599,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 decoration: const InputDecoration(
                   labelText: 'سعر الصرف',
-                  prefixIcon: Icon(Icons.money_off, size: 18),
+                  prefixIcon: Icon(Icons.monetization_on_sharp, size: 18),
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -716,6 +736,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final nameController = TextEditingController();
     final clientPriceController = TextEditingController();
     final workerPriceController = TextEditingController();
+    String selectedType = 'both';
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -746,6 +767,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'يرجى إدخال اسم المنتج';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              // ✅ DropdownButtonFormField مبسط بدون Row
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'نوع المنتج',
+                  prefixIcon: Icon(Icons.category, size: 18),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'both',
+                    child: Text('عام (للعميل والعامل)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'client',
+                    child: Text('للعميل فقط'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'worker',
+                    child: Text('للعامل فقط'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedType = value;
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'يرجى اختيار نوع المنتج';
                   }
                   return null;
                 },
@@ -812,6 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     name: nameController.text.trim(),
                     clientPrice: double.parse(clientPriceController.text),
                     workerPrice: double.parse(workerPriceController.text),
+                    type: selectedType,
                   );
                   await db.insertProduct(product);
                   Navigator.pop(context);
@@ -841,6 +900,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final workerPriceController = TextEditingController(
       text: product.workerPrice.toString(),
     );
+    String selectedType = product.type;
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -871,6 +931,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'يرجى إدخال اسم المنتج';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              // ✅ DropdownButtonFormField مبسط بدون Row
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'نوع المنتج',
+                  prefixIcon: Icon(Icons.category, size: 18),
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'both',
+                    child: Text('عام (للعميل والعامل)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'client',
+                    child: Text('للعميل فقط'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'worker',
+                    child: Text('للعامل فقط'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedType = value;
+                  }
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'يرجى اختيار نوع المنتج';
                   }
                   return null;
                 },
@@ -938,6 +1035,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     name: nameController.text.trim(),
                     clientPrice: double.parse(clientPriceController.text),
                     workerPrice: double.parse(workerPriceController.text),
+                    type: selectedType,
                   );
                   await db.updateProduct(updatedProduct);
                   Navigator.pop(context);

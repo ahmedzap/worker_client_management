@@ -58,7 +58,7 @@ class _CurrencyDropdownState extends State<CurrencyDropdown> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const SizedBox(
-        height: 50,
+        height: 56,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -80,49 +80,67 @@ class _CurrencyDropdownState extends State<CurrencyDropdown> {
     return DropdownButtonFormField<int>(
       value: selectedId,
       isExpanded: true,
+      iconSize: 20,
       decoration: InputDecoration(
         labelText: widget.label,
         prefixIcon: const Icon(Icons.currency_exchange, size: 18),
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         filled: true,
         fillColor: Colors.grey.shade50,
         isDense: true,
       ),
-      style: const TextStyle(fontSize: 13),
+      style: const TextStyle(fontSize: 14),
       items: currencies.map((currency) {
         return DropdownMenuItem<int>(
           value: currency.id,
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: currency.isDefault ? Colors.green : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  currency.symbol,
-                  style: TextStyle(
-                    color: currency.isDefault ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
+          child: SizedBox(
+            width: double.infinity,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // ✅ رمز العملة بحجم ثابت
+                Container(
+                  width: 30,
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: currency.isDefault ? Colors.green : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    currency.symbol,
+                    style: TextStyle(
+                      color: currency.isDefault ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  currency.name,
-                  style: const TextStyle(fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 8),
+                // ✅ اسم العملة مع تقصير تلقائي
+                Expanded(
+                  child: Text(
+                    currency.name,
+                    style: const TextStyle(fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
                 ),
-              ),
-              if (currency.isDefault) ...[
-                const SizedBox(width: 4),
-                const Icon(Icons.star, size: 12, color: Colors.amber),
+                // ✅ علامة النجمة
+                if (currency.isDefault) ...[
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.star,
+                    size: 14,
+                    color: Colors.amber,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       }).toList(),

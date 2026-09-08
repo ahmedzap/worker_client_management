@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Worker {
   int? id;
   String name;
@@ -30,10 +32,36 @@ class Worker {
     return Worker(
       id: map['id'],
       name: map['name'],
-      phone: map['phone'],
-      address: map['address'],
-      openingBalance: map['openingBalance'],
-      currentBalance: map['currentBalance'],
+      phone: map['phone'] ?? '',
+      address: map['address'] ?? '',
+      openingBalance: map['openingBalance'] ?? 0,
+      currentBalance: map['currentBalance'] ?? 0,
     );
+  }
+
+  // ✅ الحصول على حالة الرصيد
+  String get balanceStatus {
+    if (currentBalance > 0) return 'رصيد للعامل (دائن)';
+    if (currentBalance < 0) return 'رصيد على العامل (مدين)';
+    return 'رصيد صفر';
+  }
+
+  // ✅ الحصول على لون الرصيد
+  Color get balanceColor {
+    if (currentBalance > 0) return Colors.green;
+    if (currentBalance < 0) return Colors.red;
+    return Colors.grey;
+  }
+
+  // ✅ الحصول على أيقونة الرصيد
+  IconData get balanceIcon {
+    if (currentBalance > 0) return Icons.arrow_upward;
+    if (currentBalance < 0) return Icons.arrow_downward;
+    return Icons.remove;
+  }
+
+  // ✅ تنسيق الرصيد
+  String get formattedBalance {
+    return currentBalance.toStringAsFixed(2);
   }
 }

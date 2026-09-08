@@ -62,6 +62,7 @@ class DatabaseHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     print('🔄 ترقية قاعدة البيانات من $oldVersion إلى $newVersion');
+
     if (oldVersion < 2) {
       try {
         await db.execute('ALTER TABLE productions ADD COLUMN currencyId INTEGER DEFAULT 1');
@@ -75,11 +76,24 @@ class DatabaseHelper {
         print('⚠️ بعض الأعمدة موجودة بالفعل: $e');
       }
     }
+
     if (oldVersion < 3) {
       try {
-        await db.execute('ALTER TABLE clients ADD COLUMN isSupplier INTEGER DEFAULT 0');
-        await db.execute('ALTER TABLE clients ADD COLUMN taxNumber TEXT');
-        await db.execute('ALTER TABLE clients ADD COLUMN notes TEXT');
+        // ✅ إضافة أعمدة جديدة للعملاء
+        try {
+          await db.execute('ALTER TABLE clients ADD COLUMN isSupplier INTEGER DEFAULT 0');
+          print('✅ تم إضافة عمود isSupplier');
+        } catch (e) {}
+        try {
+          await db.execute('ALTER TABLE clients ADD COLUMN taxNumber TEXT');
+          print('✅ تم إضافة عمود taxNumber');
+        } catch (e) {}
+        try {
+          await db.execute('ALTER TABLE clients ADD COLUMN notes TEXT');
+          print('✅ تم إضافة عمود notes');
+        } catch (e) {}
+
+        // ✅ إضافة جدول أصناف الفاتورة
         await db.execute('''
           CREATE TABLE IF NOT EXISTS invoice_items(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,20 +107,48 @@ class DatabaseHelper {
             FOREIGN KEY (productId) REFERENCES products(id)
           )
         ''');
-        await db.execute('ALTER TABLE invoices ADD COLUMN paidAmount REAL DEFAULT 0');
-        await db.execute('ALTER TABLE invoices ADD COLUMN remainingAmount REAL DEFAULT 0');
-        await db.execute('ALTER TABLE payments ADD COLUMN invoiceId INTEGER');
-        await db.execute('ALTER TABLE payments ADD COLUMN notes TEXT');
+        print('✅ تم إنشاء جدول invoice_items');
+
+        // ✅ تحديث جدول الفواتير
+        try {
+          await db.execute('ALTER TABLE invoices ADD COLUMN paidAmount REAL DEFAULT 0');
+          print('✅ تم إضافة عمود paidAmount');
+        } catch (e) {}
+        try {
+          await db.execute('ALTER TABLE invoices ADD COLUMN remainingAmount REAL DEFAULT 0');
+          print('✅ تم إضافة عمود remainingAmount');
+        } catch (e) {}
+
+        // ✅ تحديث جدول المدفوعات
+        try {
+          await db.execute('ALTER TABLE payments ADD COLUMN invoiceId INTEGER');
+          print('✅ تم إضافة عمود invoiceId');
+        } catch (e) {}
+        try {
+          await db.execute('ALTER TABLE payments ADD COLUMN notes TEXT');
+          print('✅ تم إضافة عمود notes');
+        } catch (e) {}
+
+        // ✅ إضافة عمود type في جدول المنتجات
+        try {
+          await db.execute('ALTER TABLE products ADD COLUMN type TEXT DEFAULT "both"');
+          print('✅ تم إضافة عمود type في جدول المنتجات');
+        } catch (e) {
+          print('⚠️ عمود type موجود بالفعل: $e');
+        }
+
         print('✅ تم تحديث الجداول للإصدار 3');
       } catch (e) {
         print('⚠️ بعض التغييرات موجودة بالفعل: $e');
       }
     }
+
     await _ensureTablesExist(db);
   }
 
   Future<void> _ensureTablesExist(Database db) async {
     try {
+      // ✅ جدول العملات
       await db.execute('''
         CREATE TABLE IF NOT EXISTS currencies(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,6 +159,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول العمال
       await db.execute('''
         CREATE TABLE IF NOT EXISTS workers(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -128,6 +171,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول العملاء (محدث)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS clients(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,15 +186,26 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول المنتجات (محدث مع عمود type)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS products(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           clientPrice REAL NOT NULL,
-          workerPrice REAL NOT NULL
+          workerPrice REAL NOT NULL,
+          type TEXT DEFAULT 'both'
         )
       ''');
 
+      // ✅ محاولة إضافة عمود type إذا لم يكن موجوداً
+      try {
+        await db.execute('ALTER TABLE products ADD COLUMN type TEXT DEFAULT "both"');
+        print('✅ تم إضافة عمود type في جدول المنتجات');
+      } catch (e) {
+        // العمود موجود بالفعل
+      }
+
+      // ✅ جدول الإنتاج
       await db.execute('''
         CREATE TABLE IF NOT EXISTS productions(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,6 +221,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول المصروفات
       await db.execute('''
         CREATE TABLE IF NOT EXISTS expenses(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -179,6 +235,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول الفواتير (محدث)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS invoices(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -195,6 +252,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول أصناف الفاتورة (جديد)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS invoice_items(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +267,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ جدول المدفوعات (محدث)
       await db.execute('''
         CREATE TABLE IF NOT EXISTS payments(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -225,6 +284,7 @@ class DatabaseHelper {
         )
       ''');
 
+      // ✅ إضافة العملات الافتراضية
       final count = Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM currencies')
       ) ?? 0;
@@ -244,6 +304,34 @@ class DatabaseHelper {
         });
         print('✅ تم إضافة العملات الافتراضية');
       }
+
+      // ✅ إضافة منتجات افتراضية إذا لم تكن موجودة
+      final productCount = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM products')
+      ) ?? 0;
+
+      if (productCount == 0) {
+        await db.insert('products', {
+          'name': 'منتج عام',
+          'clientPrice': 100.0,
+          'workerPrice': 80.0,
+          'type': 'both',
+        });
+        await db.insert('products', {
+          'name': 'منتج للعميل فقط',
+          'clientPrice': 150.0,
+          'workerPrice': 0.0,
+          'type': 'client',
+        });
+        await db.insert('products', {
+          'name': 'منتج للعامل فقط',
+          'clientPrice': 0.0,
+          'workerPrice': 60.0,
+          'type': 'worker',
+        });
+        print('✅ تم إضافة منتجات افتراضية');
+      }
+
       print('✅ تم التأكد من وجود جميع الجداول');
     } catch (e) {
       print('❌ خطأ في إنشاء الجداول: $e');
@@ -595,6 +683,36 @@ class DatabaseHelper {
     }
   }
 
+  Future<List<Product>> getClientProducts() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'products',
+        where: 'type = ? OR type = ?',
+        whereArgs: ['client', 'both'],
+      );
+      return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+    } catch (e) {
+      print('❌ خطأ في جلب منتجات العميل: $e');
+      return [];
+    }
+  }
+
+  Future<List<Product>> getWorkerProducts() async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'products',
+        where: 'type = ? OR type = ?',
+        whereArgs: ['worker', 'both'],
+      );
+      return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
+    } catch (e) {
+      print('❌ خطأ في جلب منتجات العامل: $e');
+      return [];
+    }
+  }
+
   Future<Product?> getProduct(int id) async {
     try {
       final db = await database;
@@ -681,7 +799,7 @@ class DatabaseHelper {
       map['currencyId'] = currencyId;
       map['exchangeRate'] = exchangeRate;
       final result = await db.insert('productions', map);
-      await updateWorkerBalance(production.workerId);
+      await updateWorkerBalanceWithOpening(production.workerId);
       print('✅ تم إضافة حركة إنتاج مع العملة');
       return result;
     } catch (e) {
@@ -731,7 +849,7 @@ class DatabaseHelper {
       map['currencyId'] = currencyId;
       map['exchangeRate'] = exchangeRate;
       final result = await db.insert('expenses', map);
-      await updateWorkerBalance(expense.workerId);
+      await updateWorkerBalanceWithOpening(expense.workerId);
       print('✅ تم إضافة مصروف مع العملة');
       return result;
     } catch (e) {
@@ -902,47 +1020,64 @@ class DatabaseHelper {
 
   // ==================== تحديث الأرصدة ====================
 
-  Future<void> updateWorkerBalance(int workerId) async {
+  // ✅ تحديث رصيد العامل مع الرصيد الافتتاحي
+  Future<void> updateWorkerBalanceWithOpening(int workerId) async {
     try {
       final db = await database;
+      final worker = await getWorker(workerId);
+      if (worker == null) return;
+
       final defaultCurrency = await getDefaultCurrencyOrElse();
       final baseRate = defaultCurrency.exchangeRate;
 
+      // ✅ الرصيد الافتتاحي - تحويل إلى double
+      double openingBalance = (worker.openingBalance as num).toDouble();
+
+      // ✅ جلب جميع الإنتاج
       final productions = await db.query(
         'productions',
         where: 'workerId = ?',
         whereArgs: [workerId],
       );
 
-      double totalProduction = 0;
+      double totalProduction = 0.0;
       for (var prod in productions) {
-        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0;
-        double price = (prod['price'] as num?)?.toDouble() ?? 0;
+        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0.0;
+        double price = (prod['price'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (prod['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         double amount = quantity * price;
         totalProduction += amount * (baseRate / exchangeRate);
       }
 
+      // ✅ جلب جميع المصروفات
       final expenses = await db.query(
         'expenses',
         where: 'workerId = ?',
         whereArgs: [workerId],
       );
 
-      double totalExpenses = 0;
+      double totalExpenses = 0.0;
       for (var exp in expenses) {
-        double amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+        double amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (exp['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         totalExpenses += amount * (baseRate / exchangeRate);
       }
 
-      double currentBalance = totalProduction - totalExpenses;
-      await db.update('workers', {'currentBalance': currentBalance}, where: 'id = ?', whereArgs: [workerId]);
+      // ✅ الرصيد النهائي = الرصيد الافتتاحي + الإنتاج - المصروفات
+      double currentBalance = openingBalance + totalProduction - totalExpenses;
+
+      await db.update(
+        'workers',
+        {'currentBalance': currentBalance},
+        where: 'id = ?',
+        whereArgs: [workerId],
+      );
     } catch (e) {
       print('❌ خطأ في تحديث رصيد العامل: $e');
     }
   }
 
+  // ✅ تحديث رصيد العميل مع الرصيد الافتتاحي
   Future<void> updateClientBalanceWithOpening(int clientId) async {
     try {
       final db = await database;
@@ -952,7 +1087,7 @@ class DatabaseHelper {
       final defaultCurrency = await getDefaultCurrencyOrElse();
       final baseRate = defaultCurrency.exchangeRate;
 
-      double openingBalance = client.openingBalance;
+      double openingBalance = (client.openingBalance as num).toDouble();
 
       final invoices = await db.query(
         'invoices',
@@ -960,10 +1095,10 @@ class DatabaseHelper {
         whereArgs: [clientId],
       );
 
-      double totalInvoices = 0;
+      double totalInvoices = 0.0;
       for (var inv in invoices) {
         double exchangeRate = (inv['exchangeRate'] as num?)?.toDouble() ?? 1.0;
-        double total = (inv['total'] as num?)?.toDouble() ?? 0;
+        double total = (inv['total'] as num?)?.toDouble() ?? 0.0;
         double amountInBase = total * (baseRate / exchangeRate);
 
         if (inv['type'] == 'sale') {
@@ -979,10 +1114,10 @@ class DatabaseHelper {
         whereArgs: [clientId],
       );
 
-      double totalPayments = 0;
+      double totalPayments = 0.0;
       for (var pm in payments) {
         double exchangeRate = (pm['exchangeRate'] as num?)?.toDouble() ?? 1.0;
-        double amount = (pm['amount'] as num?)?.toDouble() ?? 0;
+        double amount = (pm['amount'] as num?)?.toDouble() ?? 0.0;
         double amountInBase = amount * (baseRate / exchangeRate);
 
         if (pm['type'] == 'receive') {
@@ -1006,161 +1141,6 @@ class DatabaseHelper {
   }
 
   // ==================== كشف الحساب ====================
-
-  // ✅ كشف حساب العميل مع الرصيد الافتتاحي
-  Future<Map<String, dynamic>> getClientStatementWithOpening(
-      int clientId, {
-        DateTime? startDate,
-        DateTime? endDate,
-      }) async {
-    try {
-      final db = await database;
-      final defaultCurrency = await getDefaultCurrencyOrElse();
-      final baseRate = defaultCurrency.exchangeRate;
-
-      final client = await getClient(clientId);
-      if (client == null) {
-        throw Exception('العميل غير موجود');
-      }
-
-      final start = startDate ?? DateTime(2000, 1, 1);
-      final end = endDate ?? DateTime.now();
-
-      final String startStr = start.toIso8601String().split('T')[0];
-      final String endStr = end.toIso8601String().split('T')[0];
-
-      final List<Map<String, dynamic>> invoices = await db.query(
-        'invoices',
-        where: 'clientId = ? AND date BETWEEN ? AND ?',
-        whereArgs: [clientId, startStr, endStr],
-        orderBy: 'date ASC',
-      );
-
-      final List<Map<String, dynamic>> payments = await db.query(
-        'payments',
-        where: 'clientId = ? AND date BETWEEN ? AND ?',
-        whereArgs: [clientId, startStr, endStr],
-        orderBy: 'date ASC',
-      );
-
-      double openingBalance = client.openingBalance;
-
-      double totalInvoices = 0;
-      List<Map<String, dynamic>> invoiceDetails = [];
-      for (var inv in invoices) {
-        double exchangeRate = (inv['exchangeRate'] as num?)?.toDouble() ?? 1.0;
-        double total = (inv['total'] as num?)?.toDouble() ?? 0;
-        double amountInBase = total * (baseRate / exchangeRate);
-
-        if (inv['type'] == 'sale') {
-          totalInvoices += amountInBase;
-        } else {
-          totalInvoices -= amountInBase;
-        }
-
-        final items = await db.query(
-          'invoice_items',
-          where: 'invoiceId = ?',
-          whereArgs: [inv['id']],
-        );
-
-        invoiceDetails.add({
-          ...inv,
-          'items': items,
-          'amountInBase': amountInBase,
-        });
-      }
-
-      double totalPayments = 0;
-      List<Map<String, dynamic>> paymentDetails = [];
-      for (var pm in payments) {
-        double exchangeRate = (pm['exchangeRate'] as num?)?.toDouble() ?? 1.0;
-        double amount = (pm['amount'] as num?)?.toDouble() ?? 0;
-        double amountInBase = amount * (baseRate / exchangeRate);
-
-        if (pm['type'] == 'receive') {
-          totalPayments += amountInBase;
-        } else {
-          totalPayments -= amountInBase;
-        }
-
-        paymentDetails.add({
-          ...pm,
-          'amountInBase': amountInBase,
-        });
-      }
-
-      double netChange = totalInvoices - totalPayments;
-      double closingBalance = openingBalance + netChange;
-
-      List<Map<String, dynamic>> transactions = [];
-
-      transactions.add({
-        'type': 'opening',
-        'date': start,
-        'description': 'الرصيد الافتتاحي',
-        'debit': openingBalance > 0 ? openingBalance : 0,
-        'credit': openingBalance < 0 ? -openingBalance : 0,
-        'balance': openingBalance,
-      });
-
-      for (var inv in invoiceDetails) {
-        double amount = inv['amountInBase'] ?? 0;
-        transactions.add({
-          'type': 'invoice',
-          'id': inv['id'],
-          'invoiceNumber': inv['invoiceNumber'],
-          'date': DateTime.parse(inv['date']),
-          'description': 'فاتورة ${inv['type'] == 'sale' ? 'توريد' : 'شراء'} رقم ${inv['invoiceNumber']}',
-          'debit': amount > 0 ? amount : 0,
-          'credit': amount < 0 ? -amount : 0,
-          'balance': 0,
-          'invoiceType': inv['type'],
-          'items': inv['items'],
-        });
-      }
-
-      for (var pm in paymentDetails) {
-        double amount = pm['amountInBase'] ?? 0;
-        transactions.add({
-          'type': 'payment',
-          'id': pm['id'],
-          'date': DateTime.parse(pm['date']),
-          'description': pm['type'] == 'receive' ? 'سند قبض' : 'سند صرف',
-          'debit': amount < 0 ? -amount : 0,
-          'credit': amount > 0 ? amount : 0,
-          'balance': 0,
-          'paymentType': pm['type'],
-          'notes': pm['notes'],
-        });
-      }
-
-      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-
-      double runningBalance = openingBalance;
-      for (var i = 0; i < transactions.length; i++) {
-        double debit = transactions[i]['debit'] ?? 0;
-        double credit = transactions[i]['credit'] ?? 0;
-        runningBalance += debit - credit;
-        transactions[i]['balance'] = runningBalance;
-      }
-
-      return {
-        'client': client,
-        'startDate': start,
-        'endDate': end,
-        'openingBalance': openingBalance,
-        'closingBalance': closingBalance,
-        'totalInvoices': totalInvoices.abs(),
-        'totalPayments': totalPayments.abs(),
-        'netChange': netChange,
-        'transactions': transactions,
-      };
-    } catch (e) {
-      print('❌ خطأ في إنشاء كشف حساب العميل: $e');
-      rethrow;
-    }
-  }
 
   // ✅ كشف حساب العامل مع الرصيد الافتتاحي
   Future<Map<String, dynamic>> getWorkerStatementWithOpening(
@@ -1198,13 +1178,15 @@ class DatabaseHelper {
         orderBy: 'date ASC',
       );
 
-      double openingBalance = worker.openingBalance;
+      // ✅ الرصيد الافتتاحي - تحويل إلى double
+      double openingBalance = (worker.openingBalance as num).toDouble();
 
-      double totalProduction = 0;
+      // ✅ حساب إجمالي الإنتاج
+      double totalProduction = 0.0;
       List<Map<String, dynamic>> productionDetails = [];
       for (var prod in productions) {
-        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0;
-        double price = (prod['price'] as num?)?.toDouble() ?? 0;
+        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0.0;
+        double price = (prod['price'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (prod['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         double amount = quantity * price;
         double amountInBase = amount * (baseRate / exchangeRate);
@@ -1223,10 +1205,11 @@ class DatabaseHelper {
         });
       }
 
-      double totalExpenses = 0;
+      // ✅ حساب إجمالي المصروفات
+      double totalExpenses = 0.0;
       List<Map<String, dynamic>> expenseDetails = [];
       for (var exp in expenses) {
-        double amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+        double amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (exp['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         double amountInBase = amount * (baseRate / exchangeRate);
         totalExpenses += amountInBase;
@@ -1237,55 +1220,67 @@ class DatabaseHelper {
         });
       }
 
+      // ✅ صافي الربح = الإنتاج - المصروفات
       double netProfit = totalProduction - totalExpenses;
+
+      // ✅ الرصيد النهائي = الرصيد الافتتاحي + صافي الربح
       double closingBalance = openingBalance + netProfit;
 
+      // ✅ إنشاء قائمة الحركات
       List<Map<String, dynamic>> transactions = [];
 
+      // ✅ الرصيد الافتتاحي
       transactions.add({
         'type': 'opening',
         'date': start,
         'description': 'الرصيد الافتتاحي',
-        'debit': openingBalance > 0 ? openingBalance : 0,
-        'credit': openingBalance < 0 ? -openingBalance : 0,
+        'debit': openingBalance > 0 ? openingBalance : 0.0,
+        'credit': openingBalance < 0 ? -openingBalance : 0.0,
         'balance': openingBalance,
+        'isOpening': true,
       });
 
+      // ✅ حركات الإنتاج (تزيد الرصيد = دائن)
       for (var prod in productionDetails) {
-        double amount = prod['amountInBase'] ?? 0;
+        double amount = (prod['amountInBase'] as num?)?.toDouble() ?? 0.0;
         transactions.add({
           'type': 'production',
           'id': prod['id'],
           'date': DateTime.parse(prod['date']),
-          'description': 'إنتاج ${prod['quantity']} قطعة',
-          'productName': prod['productName'],
-          'quantity': prod['quantity'],
-          'price': prod['price'],
+          'description': 'إنتاج ${prod['quantity']} قطعة من ${prod['productName']}',
+          'productName': prod['productName'] ?? '',
+          'quantity': (prod['quantity'] as num?)?.toDouble() ?? 0.0,
+          'price': (prod['price'] as num?)?.toDouble() ?? 0.0,
           'debit': amount,
-          'credit': 0,
-          'balance': 0,
+          'credit': 0.0,
+          'balance': 0.0,
+          'isOpening': false,
         });
       }
 
+      // ✅ حركات المصروفات (تقلل الرصيد = مدين)
       for (var exp in expenseDetails) {
-        double amount = exp['amountInBase'] ?? 0;
+        double amount = (exp['amountInBase'] as num?)?.toDouble() ?? 0.0;
         transactions.add({
           'type': 'expense',
           'id': exp['id'],
           'date': DateTime.parse(exp['date']),
           'description': exp['description'] ?? 'مصروف',
-          'debit': 0,
+          'debit': 0.0,
           'credit': amount,
-          'balance': 0,
+          'balance': 0.0,
+          'isOpening': false,
         });
       }
 
+      // ✅ ترتيب حسب التاريخ
       transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
 
+      // ✅ حساب الرصيد التراكمي
       double runningBalance = openingBalance;
       for (var i = 0; i < transactions.length; i++) {
-        double debit = transactions[i]['debit'] ?? 0;
-        double credit = transactions[i]['credit'] ?? 0;
+        double debit = (transactions[i]['debit'] as num?)?.toDouble() ?? 0.0;
+        double credit = (transactions[i]['credit'] as num?)?.toDouble() ?? 0.0;
         runningBalance += debit - credit;
         transactions[i]['balance'] = runningBalance;
       }
@@ -1300,9 +1295,170 @@ class DatabaseHelper {
         'totalExpenses': totalExpenses,
         'netProfit': netProfit,
         'transactions': transactions,
+        'balanceInfo': {
+          'status': closingBalance > 0 ? 'رصيد للعامل (دائن)' :
+          closingBalance < 0 ? 'رصيد على العامل (مدين)' : 'رصيد صفر',
+          'color': closingBalance > 0 ? 'green' :
+          closingBalance < 0 ? 'red' : 'grey',
+        },
       };
     } catch (e) {
       print('❌ خطأ في إنشاء كشف حساب العامل: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ كشف حساب العميل مع الرصيد الافتتاحي
+  Future<Map<String, dynamic>> getClientStatementWithOpening(
+      int clientId, {
+        DateTime? startDate,
+        DateTime? endDate,
+      }) async {
+    try {
+      final db = await database;
+      final defaultCurrency = await getDefaultCurrencyOrElse();
+      final baseRate = defaultCurrency.exchangeRate;
+
+      final client = await getClient(clientId);
+      if (client == null) {
+        throw Exception('العميل غير موجود');
+      }
+
+      final start = startDate ?? DateTime(2000, 1, 1);
+      final end = endDate ?? DateTime.now();
+
+      final String startStr = start.toIso8601String().split('T')[0];
+      final String endStr = end.toIso8601String().split('T')[0];
+
+      final List<Map<String, dynamic>> invoices = await db.query(
+        'invoices',
+        where: 'clientId = ? AND date BETWEEN ? AND ?',
+        whereArgs: [clientId, startStr, endStr],
+        orderBy: 'date ASC',
+      );
+
+      final List<Map<String, dynamic>> payments = await db.query(
+        'payments',
+        where: 'clientId = ? AND date BETWEEN ? AND ?',
+        whereArgs: [clientId, startStr, endStr],
+        orderBy: 'date ASC',
+      );
+
+      double openingBalance = (client.openingBalance as num).toDouble();
+
+      double totalInvoices = 0.0;
+      List<Map<String, dynamic>> invoiceDetails = [];
+      for (var inv in invoices) {
+        double exchangeRate = (inv['exchangeRate'] as num?)?.toDouble() ?? 1.0;
+        double total = (inv['total'] as num?)?.toDouble() ?? 0.0;
+        double amountInBase = total * (baseRate / exchangeRate);
+
+        if (inv['type'] == 'sale') {
+          totalInvoices += amountInBase;
+        } else {
+          totalInvoices -= amountInBase;
+        }
+
+        final items = await db.query(
+          'invoice_items',
+          where: 'invoiceId = ?',
+          whereArgs: [inv['id']],
+        );
+
+        invoiceDetails.add({
+          ...inv,
+          'items': items,
+          'amountInBase': amountInBase,
+        });
+      }
+
+      double totalPayments = 0.0;
+      List<Map<String, dynamic>> paymentDetails = [];
+      for (var pm in payments) {
+        double exchangeRate = (pm['exchangeRate'] as num?)?.toDouble() ?? 1.0;
+        double amount = (pm['amount'] as num?)?.toDouble() ?? 0.0;
+        double amountInBase = amount * (baseRate / exchangeRate);
+
+        if (pm['type'] == 'receive') {
+          totalPayments += amountInBase;
+        } else {
+          totalPayments -= amountInBase;
+        }
+
+        paymentDetails.add({
+          ...pm,
+          'amountInBase': amountInBase,
+        });
+      }
+
+      double netChange = totalInvoices - totalPayments;
+      double closingBalance = openingBalance + netChange;
+
+      List<Map<String, dynamic>> transactions = [];
+
+      transactions.add({
+        'type': 'opening',
+        'date': start,
+        'description': 'الرصيد الافتتاحي',
+        'debit': openingBalance > 0 ? openingBalance : 0.0,
+        'credit': openingBalance < 0 ? -openingBalance : 0.0,
+        'balance': openingBalance,
+      });
+
+      for (var inv in invoiceDetails) {
+        double amount = (inv['amountInBase'] as num?)?.toDouble() ?? 0.0;
+        transactions.add({
+          'type': 'invoice',
+          'id': inv['id'],
+          'invoiceNumber': inv['invoiceNumber'] ?? '',
+          'date': DateTime.parse(inv['date']),
+          'description': 'فاتورة ${inv['type'] == 'sale' ? 'توريد' : 'شراء'} رقم ${inv['invoiceNumber']}',
+          'debit': amount > 0 ? amount : 0.0,
+          'credit': amount < 0 ? -amount : 0.0,
+          'balance': 0.0,
+          'invoiceType': inv['type'],
+          'items': inv['items'] ?? [],
+        });
+      }
+
+      for (var pm in paymentDetails) {
+        double amount = (pm['amountInBase'] as num?)?.toDouble() ?? 0.0;
+        transactions.add({
+          'type': 'payment',
+          'id': pm['id'],
+          'date': DateTime.parse(pm['date']),
+          'description': pm['type'] == 'receive' ? 'سند قبض' : 'سند صرف',
+          'debit': amount < 0 ? -amount : 0.0,
+          'credit': amount > 0 ? amount : 0.0,
+          'balance': 0.0,
+          'paymentType': pm['type'],
+          'notes': pm['notes'] ?? '',
+        });
+      }
+
+      transactions.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+
+      double runningBalance = openingBalance;
+      for (var i = 0; i < transactions.length; i++) {
+        double debit = (transactions[i]['debit'] as num?)?.toDouble() ?? 0.0;
+        double credit = (transactions[i]['credit'] as num?)?.toDouble() ?? 0.0;
+        runningBalance += debit - credit;
+        transactions[i]['balance'] = runningBalance;
+      }
+
+      return {
+        'client': client,
+        'startDate': start,
+        'endDate': end,
+        'openingBalance': openingBalance,
+        'closingBalance': closingBalance,
+        'totalInvoices': totalInvoices.abs(),
+        'totalPayments': totalPayments.abs(),
+        'netChange': netChange,
+        'transactions': transactions,
+      };
+    } catch (e) {
+      print('❌ خطأ في إنشاء كشف حساب العميل: $e');
       rethrow;
     }
   }
@@ -1330,21 +1486,21 @@ class DatabaseHelper {
         ORDER BY date
       ''', [workerId, startStr, endStr]);
 
-      double totalProduction = 0;
-      double totalExpenses = 0;
+      double totalProduction = 0.0;
+      double totalExpenses = 0.0;
       final defaultCurrency = await getDefaultCurrencyOrElse();
       final baseRate = defaultCurrency.exchangeRate;
 
       for (var prod in productions) {
-        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0;
-        double price = (prod['price'] as num?)?.toDouble() ?? 0;
+        double quantity = (prod['quantity'] as num?)?.toDouble() ?? 0.0;
+        double price = (prod['price'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (prod['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         double amount = quantity * price;
         totalProduction += amount * (baseRate / exchangeRate);
       }
 
       for (var exp in expenses) {
-        double amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+        double amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
         double exchangeRate = (exp['exchangeRate'] as num?)?.toDouble() ?? 1.0;
         totalExpenses += amount * (baseRate / exchangeRate);
       }
@@ -1359,7 +1515,7 @@ class DatabaseHelper {
       print('❌ خطأ في إنشاء التقرير الأسبوعي: $e');
       return [
         {'productions': [], 'expenses': []},
-        {'totalProduction': 0, 'totalExpenses': 0, 'net': 0}
+        {'totalProduction': 0.0, 'totalExpenses': 0.0, 'net': 0.0}
       ];
     }
   }

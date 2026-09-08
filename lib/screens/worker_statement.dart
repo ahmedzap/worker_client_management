@@ -33,7 +33,6 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     final now = DateTime.now();
-    // ✅ بداية الأسبوع (الجمعة)
     int daysToSubtract = now.weekday + 1;
     if (daysToSubtract > 7) daysToSubtract = 7;
     startDate = now.subtract(Duration(days: daysToSubtract));
@@ -240,82 +239,156 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
 
   Widget _buildSummaryCards() {
     final data = statementData!;
+
     final openingBalance = data['openingBalance'] ?? 0;
     final closingBalance = data['closingBalance'] ?? 0;
-    final totalProduction = data['totalProduction'] ?? 0;
-    final totalExpenses = data['totalExpenses'] ?? 0;
     final netProfit = data['netProfit'] ?? 0;
 
+    // ✅ حل مشكلة Overflow باستخدام Expanded مع padding صغير
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
+          // ✅ بطاقة 1 - الرصيد الافتتاحي
           Expanded(
-            child: _buildSummaryCard(
-              'الرصيد الافتتاحي',
-              openingBalance,
-              Colors.blue,
-              Icons.account_balance,
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.account_balance, size: 12, color: Colors.blue),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            'الرصيد الافتتاحي',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      NumberFormat('#,##0.00').format(openingBalance),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          // ✅ بطاقة 2 - صافي الربح
           Expanded(
-            child: _buildSummaryCard(
-              'صافي الربح',
-              netProfit,
-              netProfit >= 0 ? Colors.green : Colors.red,
-              Icons.trending_up,
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.trending_up,
+                          size: 12,
+                          color: netProfit >= 0 ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            'صافي الربح',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      NumberFormat('#,##0.00').format(netProfit),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: netProfit >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          // ✅ بطاقة 3 - الرصيد النهائي
           Expanded(
-            child: _buildSummaryCard(
-              'الرصيد النهائي',
-              closingBalance,
-              closingBalance >= 0 ? Colors.green : Colors.red,
-              Icons.account_balance_wallet,
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet,
+                          size: 12,
+                          color: closingBalance >= 0 ? Colors.green : Colors.red,
+                        ),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            'الرصيد النهائي',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      NumberFormat('#,##0.00').format(closingBalance),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: closingBalance >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(String label, double value, Color color, IconData icon) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 14, color: color),
-                const SizedBox(width: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              NumberFormat('#,##0.00').format(value),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -403,6 +476,7 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
     );
   }
 
+  // ✅ حل مشكلة Overflow في الحركات
   Widget _buildTransactionItem(Map<String, dynamic> item) {
     final isOpening = item['type'] == 'opening';
     final isProduction = item['type'] == 'production';
@@ -410,9 +484,9 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
 
     final date = item['date'] as DateTime;
     final description = item['description'] ?? '';
-    final debit = item['debit'] ?? 0;
-    final credit = item['credit'] ?? 0;
-    final balance = item['balance'] ?? 0;
+    final debit = (item['debit'] ?? 0).toDouble();
+    final credit = (item['credit'] ?? 0).toDouble();
+    final balance = (item['balance'] ?? 0).toDouble();
 
     Color? backgroundColor;
     IconData? icon;
@@ -432,8 +506,7 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
       iconColor = Colors.red;
     }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -443,92 +516,133 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
         ),
       ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         leading: CircleAvatar(
-          backgroundColor: (iconColor ?? Colors.grey).withOpacity(0.2),
-          child: Icon(icon ?? Icons.receipt, size: 18, color: iconColor ?? Colors.grey),
+          radius: 16,
+          backgroundColor: (iconColor ?? Colors.grey).withOpacity(0.15),
+          child: Icon(icon ?? Icons.receipt, size: 16, color: iconColor ?? Colors.grey),
         ),
         title: Text(
           description,
           style: TextStyle(
             fontWeight: isOpening ? FontWeight.bold : FontWeight.w500,
-            fontSize: 14,
+            fontSize: 13,
+            color: Colors.grey[800],
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+          softWrap: false,
         ),
-        subtitle: Row(
+        // ✅ subtitle بدون Row - استخدام Wrap فقط
+        subtitle: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 4,
+          runSpacing: 2,
           children: [
-            Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
-            const SizedBox(width: 4),
+            // ✅ التاريخ - بدون Row زائدة
+            Icon(Icons.calendar_today, size: 10, color: Colors.grey[500]),
             Text(
               DateFormat('yyyy-MM-dd').format(date),
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
             ),
+            // ✅ معلومات المنتج (إذا كان إنتاج)
             if (isProduction && item['productName'] != null) ...[
-              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  item['productName'],
-                  style: const TextStyle(fontSize: 10),
+                  item['productName'] ?? '',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  softWrap: false,
                 ),
               ),
-              const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   '${item['quantity']} × ${NumberFormat('#,##0.00').format(item['price'])}',
-                  style: const TextStyle(fontSize: 10),
+                  style: const TextStyle(fontSize: 9),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  softWrap: false,
                 ),
               ),
             ],
           ],
         ),
-        trailing: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (debit > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(4),
+        trailing: Container(
+          constraints: const BoxConstraints(maxWidth: 100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (debit > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '+${NumberFormat('#,##0.00').format(debit)}',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
                 ),
-                child: Text(
-                  '+${NumberFormat('#,##0.00').format(debit)}',
-                  style: const TextStyle(color: Colors.green, fontSize: 11),
+              if (credit > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '-${NumberFormat('#,##0.00').format(credit)}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    softWrap: false,
+                  ),
                 ),
+              Text(
+                'الرصيد: ${NumberFormat('#,##0.00').format(balance)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 9,
+                  color: balance >= 0 ? Colors.green : Colors.red,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                softWrap: false,
               ),
-            if (credit > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade100,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '-${NumberFormat('#,##0.00').format(credit)}',
-                  style: const TextStyle(color: Colors.red, fontSize: 11),
-                ),
-              ),
-            const SizedBox(height: 2),
-            Text(
-              'الرصيد: ${NumberFormat('#,##0.00').format(balance)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: balance >= 0 ? Colors.green : Colors.red,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
+        isThreeLine: true,
+        dense: true,
+        minVerticalPadding: 2,
       ),
     );
   }
@@ -567,6 +681,8 @@ class _WorkerStatementScreenState extends State<WorkerStatementScreen>
       SnackBar(
         content: Text('❌ $message'),
         backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
